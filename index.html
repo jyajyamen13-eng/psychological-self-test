@@ -932,12 +932,12 @@ body {
 
 /* Hide interactive bits */
 .btn, .btn-row, button { display: none !important; }
-/* Staff note textarea: collapse rows=6 fixed height in print, grow to content */
+/* Staff note textarea: height controlled by JS beforeprint handler (shrinks to content).
+   Do NOT use height:auto here — JS sets inline style which must win. */
 #staff-note {
   border: 1px solid #ccc;
   min-height: 12mm;
   padding: 2mm;
-  height: auto !important;
   resize: none;
   overflow: hidden;
 }
@@ -1085,6 +1085,20 @@ body {
 
 /* ----- Scale list ----- */
 .scale-list { gap: 2mm; }
+
+/* ----- Spread layout when memo card is absent (print-memo-empty class added by JS) ----- */
+/* Extra vertical spacing redistributes the ~70mm freed by hiding the memo card.
+   Only applied when body.print-memo-empty — memo-filled prints use the base values. */
+.print-memo-empty .subscore-list { gap: 8mm 6mm; }
+.print-memo-empty .subscore-group { padding-bottom: 2mm; }
+.print-memo-empty .subscore-group__title { margin-bottom: 3mm; }
+.print-memo-empty .subscore-row { padding: 2.5mm 0; }
+.print-memo-empty .scale-list { gap: 4mm; }
+.print-memo-empty .scale-list__item { padding: 1mm 0; }
+.print-memo-empty .axis-bars__list { gap: 3mm; }
+.print-memo-empty .axis-bar { padding: 0.5mm 0; }
+.print-memo-empty .alert-banner { margin-top: 6mm; padding: 3mm 4mm; }
+.print-memo-empty .site-footer { margin-top: 4mm; }
 .scale-list__item {
   grid-template-columns: 24mm 60mm 1fr 30mm;
   gap: 3mm;
@@ -1103,12 +1117,12 @@ body {
   gap: 4mm 6mm;
 }
 .subscore-group { padding-left: 2mm; break-inside: avoid; }
-.subscore-group__title { font-size: 8pt; margin-bottom: 2mm; }
+.subscore-group__title { font-size: 8pt; margin-bottom: 1.5mm; }
 .subscore-row {
   grid-template-columns: 26mm 35mm 1fr;
   gap: 2mm;
   font-size: 7.5pt;
-  padding: 0.8mm 0;
+  padding: 0.7mm 0;
 }
 .subscore-row__bar { height: 2mm; width: 35mm; }
 .subscore-row__num { font-size: 7.5pt; padding-left: 2mm; }
@@ -3378,7 +3392,8 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
     boot();
   }
 
-  // ---- Print: hide staff-note card when memo is empty ----
+  // ---- Print: hide staff-note card when memo is empty; shrink textarea to content ----
+  var _printTextareaOrigHeight = null;
   window.addEventListener("beforeprint", function () {
     var card = document.getElementById("staff-note-card");
     if (!card) return;
@@ -3386,12 +3401,39 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
     var isEmpty = !textarea || textarea.value.trim() === "";
     if (isEmpty) {
       card.setAttribute("data-print-hidden", "true");
+      // Mark body so CSS can spread remaining content when memo is absent
+      document.body.classList.add("print-memo-empty");
+    } else if (textarea) {
+      // Shrink textarea to fit content, but keep a minimum readable height
+      _printTextareaOrigHeight = textarea.style.height;
+      // Calculate content-based height
+      var tStyle = window.getComputedStyle(textarea);
+      var lineH = parseFloat(tStyle.lineHeight) || parseFloat(tStyle.fontSize) * 1.4;
+      var padTop = parseFloat(tStyle.paddingTop) || 0;
+      var padBot = parseFloat(tStyle.paddingBottom) || 0;
+      var lines = textarea.value.split("\n");
+      var estLines = 0;
+      var charsPerLine = Math.max(20, Math.floor(textarea.clientWidth / (parseFloat(tStyle.fontSize) * 0.55)));
+      lines.forEach(function(l) {
+        estLines += Math.max(1, Math.ceil((l.length || 1) / charsPerLine));
+      });
+      var contentH = Math.ceil(estLines * lineH) + padTop + padBot + 4;
+      // Minimum height: 3 lines (comfortable reading space, ~30mm)
+      var minH = Math.ceil(3 * lineH) + padTop + padBot + 4;
+      textarea.style.height = Math.max(contentH, minH) + "px";
     }
   });
 
   window.addEventListener("afterprint", function () {
     var card = document.getElementById("staff-note-card");
     if (card) card.removeAttribute("data-print-hidden");
+    document.body.classList.remove("print-memo-empty");
+    // Restore textarea height
+    var textarea = document.getElementById("staff-note");
+    if (textarea && _printTextareaOrigHeight !== null) {
+      textarea.style.height = _printTextareaOrigHeight;
+      _printTextareaOrigHeight = null;
+    }
   });
 
   root.AssessmentApp = { state: state };
