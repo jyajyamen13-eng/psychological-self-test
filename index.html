@@ -1032,6 +1032,7 @@ body {
   height: 100%;
   box-sizing: border-box;
   overflow: hidden;
+  justify-content: space-between;
 }
 /* 総合判定バナー */
 .result-hero__signal {
@@ -1084,7 +1085,20 @@ body {
   background: #F0F0F2;
   width: 68mm;
 }
-.axis-bar__zones { display: none; }
+/* MUST-2: ゾーン境界線を印刷時も表示（25/50/75 の区切り線） */
+.axis-bar__zones {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.axis-bar__zones .axis-bar__zone {
+  border-right: 1px solid #D4D6D9;
+}
+.axis-bar__zones .axis-bar__zone:last-child {
+  border-right: none;
+}
 .axis-bar__fill { border-radius: 1.5mm; }
 .axis-bar__meta { justify-content: flex-start; grid-column: 4; }
 .axis-bar__badge { font-size: 7.5pt; padding: 0 1.5mm; }
@@ -1123,6 +1137,11 @@ body {
 .insight-card[style*="border-left"] .insight-card__content p { margin: 0 0 0.4mm 0; }
 
 /* ----- Scale list ----- */
+/* MUST-3: 尺度別スコアをpage 2の先頭に強制（時系列チャートも続けて収まる） */
+.scale-list-card {
+  break-before: page !important;
+  page-break-before: always !important;
+}
 .scale-list { gap: 1.5mm; }
 
 /* ----- Spread layout when memo card is absent (print-memo-empty class added by JS) ----- */
@@ -2334,7 +2353,13 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
       }
     }
 
-    var barRowsHtml = axes.map(function (axisCfg) {
+    // MUST-2: スコア降順でソート（意味のある順列）
+    var sortedAxes = axes.slice().sort(function (a, b) {
+      var av = (result.axes[a.id] && result.axes[a.id].radar_value) || 0;
+      var bv = (result.axes[b.id] && result.axes[b.id].radar_value) || 0;
+      return bv - av;
+    });
+    var barRowsHtml = sortedAxes.map(function (axisCfg) {
       var axisRes = result.axes[axisCfg.id];
       if (!axisRes) {
         return '<div class="axis-bar"><div class="axis-bar__label">' + escapeHtml(axisCfg.name) + '</div><div class="axis-bar__track"></div><div class="axis-bar__meta">-</div></div>';
@@ -2641,15 +2666,15 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
       '  <h3 class="insight-card__title">スコアサマリー</h3>' +
       '  <div class="insight-card__content">' + insightHtml + '</div>' +
       '</div>' +
+      '<div class="card scale-list-card" style="page-break-before:always;break-before:page;">' +
+      '  <div class="card__header"><h2 class="card__title">尺度別スコア</h2></div>' +
+      '  ' + scaleScoresHtml +
+      '</div>' +
       (historicalResults.length >= 2 ?
       '<div class="chart-wrapper">' +
       '  <h3 class="chart-wrapper__title">時系列推移（評価日順）</h3>' +
       '  <div class="chart-wrapper__bound"><canvas id="chart-timeseries"></canvas></div>' +
       '</div>' : '') +
-      '<div class="card">' +
-      '  <div class="card__header"><h2 class="card__title">尺度別スコア</h2></div>' +
-      '  ' + scaleScoresHtml +
-      '</div>' +
       '<div class="card">' +
       '  <div class="card__header"><h2 class="card__title">サブカテゴリ別ドリルダウン</h2></div>' +
       '  ' + subscoreHtml +
