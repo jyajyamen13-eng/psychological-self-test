@@ -978,7 +978,14 @@ body {
   border-bottom: 1px solid #E8E9EB;
 }
 .result-hero__chart-title { font-size: 8pt; margin-bottom: 1mm; }
-.result-hero__chart-bound { height: 65mm; }
+/* レーダーチャートは正方形で印刷（六角形を崩さない） */
+.result-hero__chart-bound {
+  height: auto;
+  aspect-ratio: 1 / 1;
+  max-height: 65mm;
+  max-width: 65mm;
+  margin: 0 auto;
+}
 
 .result-hero__status {
   padding: 2.5mm 3.5mm;
