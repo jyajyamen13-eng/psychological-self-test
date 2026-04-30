@@ -932,7 +932,15 @@ body {
 
 /* Hide interactive bits */
 .btn, .btn-row, button { display: none !important; }
-#staff-note { border: 1px solid #ccc; min-height: 12mm; padding: 2mm; }
+/* Staff note textarea: collapse rows=6 fixed height in print, grow to content */
+#staff-note {
+  border: 1px solid #ccc;
+  min-height: 12mm;
+  padding: 2mm;
+  height: auto !important;
+  resize: none;
+  overflow: hidden;
+}
 
 /* Hide staff-note card when memo is empty (set by beforeprint JS) */
 [data-print-hidden] { display: none !important; }
@@ -985,8 +993,8 @@ body {
 .result-hero__chart-bound {
   height: auto;
   aspect-ratio: 1 / 1;
-  max-height: 65mm;
-  max-width: 65mm;
+  max-height: 60mm;
+  max-width: 60mm;
   margin: 0 auto;
 }
 
@@ -1024,7 +1032,7 @@ body {
   break-inside: avoid;
 }
 .axis-bars__title { font-size: 8pt; margin-bottom: 2mm; padding-bottom: 1mm; }
-.axis-bars__list { gap: 1.5mm; }
+.axis-bars__list { gap: 2mm; }
 .axis-bar {
   grid-template-columns: 30mm 70mm 1fr 30mm;
   gap: 3mm;
@@ -1053,7 +1061,7 @@ body {
   break-inside: avoid;
 }
 .chart-wrapper__title { font-size: 8pt; margin-bottom: 1mm; padding-bottom: 1mm; }
-.chart-wrapper__bound { height: 52mm; }
+.chart-wrapper__bound { height: 44mm; }
 
 /* ----- Insight (score summary — allow flow across pages) ----- */
 .insight-card {
@@ -1076,7 +1084,7 @@ body {
 .insight-card[style*="border-left"] .insight-card__content p { margin: 0 0 0.5mm 0; }
 
 /* ----- Scale list ----- */
-.scale-list { gap: 1.5mm; }
+.scale-list { gap: 2mm; }
 .scale-list__item {
   grid-template-columns: 24mm 60mm 1fr 30mm;
   gap: 3mm;
@@ -1092,15 +1100,15 @@ body {
 .subscore-list {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 3mm 6mm;
+  gap: 4mm 6mm;
 }
 .subscore-group { padding-left: 2mm; break-inside: avoid; }
-.subscore-group__title { font-size: 8pt; margin-bottom: 1mm; }
+.subscore-group__title { font-size: 8pt; margin-bottom: 2mm; }
 .subscore-row {
   grid-template-columns: 26mm 35mm 1fr;
   gap: 2mm;
   font-size: 7.5pt;
-  padding: 0.3mm 0;
+  padding: 0.8mm 0;
 }
 .subscore-row__bar { height: 2mm; width: 35mm; }
 .subscore-row__num { font-size: 7.5pt; padding-left: 2mm; }
@@ -2913,7 +2921,18 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
         activeResultIdx: parseInt(t.getAttribute("data-idx"), 10)
       });
     }
-    else if (action === "print-report") window.print();
+    else if (action === "print-report") {
+      try {
+        window.print();
+      } catch (err) {
+        console.error('window.print() failed:', err);
+        var _dialog = document.createElement('div');
+        _dialog.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#fff3cd;color:#856404;padding:16px 24px;border:1px solid #ffeaa7;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:600px;z-index:10000;line-height:1.6;';
+        _dialog.innerHTML = '<strong>⚠️ 印刷ダイアログを開けませんでした</strong><br>ブラウザ拡張機能（MetaMask など）が干渉している可能性があります。<br><br>対処: <strong>シークレットウィンドウ</strong>で開くか、拡張機能を一時無効化してください。<br><br><button onclick="this.parentElement.remove()" style="background:#856404;color:#fff;border:0;padding:6px 14px;border-radius:4px;cursor:pointer;">OK</button>';
+        document.body.appendChild(_dialog);
+        setTimeout(function() { if (_dialog.parentElement) _dialog.remove(); }, 8000);
+      }
+    }
     else if (action === "save-note") {
       var cid = t.getAttribute("data-client");
       var idx = parseInt(t.getAttribute("data-idx"), 10);
