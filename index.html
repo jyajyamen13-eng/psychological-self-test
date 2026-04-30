@@ -3396,8 +3396,12 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
   var _printTextareaOrigHeight = null;
   window.addEventListener("beforeprint", function () {
     var card = document.getElementById("staff-note-card");
-    if (!card) return;
     var textarea = document.getElementById("staff-note");
+    // If no staff-note-card (public build), treat as memo-empty for layout purposes
+    if (!card) {
+      document.body.classList.add("print-memo-empty");
+      return;
+    }
     var isEmpty = !textarea || textarea.value.trim() === "";
     if (isEmpty) {
       card.setAttribute("data-print-hidden", "true");
