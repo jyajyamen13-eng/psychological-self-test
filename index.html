@@ -975,14 +975,15 @@ body {
 .result-header__client { font-size: 12pt; }
 .result-header__meta { font-size: 9pt; }
 
-/* ----- Hero — 2-column grid layout for print (REDESIGNED) ----- */
-/* Root redesign: left=radar chart (45%), right=status summary (55%).
-   Fixed height 62mm so page 1 content stays well within A4 (273mm printable). */
+/* ----- Hero — 2-column grid layout for print (REDESIGNED v2) ----- */
+/* Radar = main visual. Bumped to 50/50 split + 90mm height so the chart
+   fills the left column at ~85mm. Right column = status panel laid out
+   with space-between to absorb the extra vertical room. */
 .result-hero {
   display: grid !important;
-  grid-template-columns: 45% 55%;
+  grid-template-columns: 50% 50%;
   gap: 0;
-  height: 62mm;
+  height: 90mm;
   border-radius: 0 0 4px 4px;
   margin-bottom: 3mm;
   box-shadow: none;
@@ -1011,8 +1012,8 @@ body {
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
-  max-width: 56mm;
-  max-height: 56mm;
+  max-width: 85mm;
+  max-height: 85mm;
   margin: 0 auto;
 }
 .result-hero__chart-bound canvas {
@@ -1022,12 +1023,12 @@ body {
   height: 100% !important;
 }
 
-/* Right column: status summary — 3 rows stacked */
+/* Right column: status summary — 3 rows stacked, ゆったり配置 */
 .result-hero__status {
-  padding: 2mm 3mm;
+  padding: 3mm 4mm;
   display: flex;
   flex-direction: column;
-  gap: 2mm;
+  gap: 3mm;
   background: transparent;
   height: 100%;
   box-sizing: border-box;
@@ -1037,32 +1038,32 @@ body {
 /* 総合判定バナー */
 .result-hero__signal {
   flex-shrink: 0;
-  padding: 1.5mm 2.5mm;
+  padding: 2.5mm 3mm;
   box-shadow: none;
   min-height: 0;
 }
 .result-hero__signal-icon { display: none; }
-.result-hero__signal-label { font-size: 6.5pt; }
-.result-hero__signal-value { font-size: 11pt; line-height: 1.2; }
+.result-hero__signal-label { font-size: 7.5pt; }
+.result-hero__signal-value { font-size: 14pt; line-height: 1.2; }
 /* 総合スコア */
 .result-hero__total {
   flex-shrink: 0;
-  padding: 1.5mm 2.5mm;
+  padding: 2.5mm 3mm;
   border: 1px solid #E8E9EB;
   min-height: 0;
 }
-.result-hero__total-label { font-size: 7.5pt; }
-.result-hero__total-value { font-size: 16pt; line-height: 1; }
-.result-hero__total-unit { font-size: 8pt; }
+.result-hero__total-label { font-size: 8.5pt; }
+.result-hero__total-value { font-size: 22pt; line-height: 1; }
+.result-hero__total-unit { font-size: 10pt; }
 /* 良好/課題領域タグ群 — flex rows */
 .result-hero__takeaway-group {
-  font-size: 8pt;
+  font-size: 8.5pt;
   flex: 1 1 auto;
   overflow: hidden;
   min-height: 0;
 }
-.result-hero__takeaway-title { font-size: 6.5pt; margin-bottom: 0.5mm; }
-.result-hero__takeaway-pill { padding: 1px 5px; font-size: 7.5pt; }
+.result-hero__takeaway-title { font-size: 7.5pt; margin-bottom: 1mm; }
+.result-hero__takeaway-pill { padding: 1.5px 6px; font-size: 8pt; }
 
 /* ----- Axis bars (key visual) ----- */
 .axis-bars {
@@ -1159,6 +1160,20 @@ body {
 .print-memo-empty .axis-bar { padding: 0.3mm 0; }
 .print-memo-empty .alert-banner { margin-top: 3mm; padding: 2mm 3mm; }
 .print-memo-empty .site-footer { margin-top: 2mm; }
+
+/* ----- 支援者向け × memo-empty (public-shien): tightest compression to keep page 2 ----- */
+/* When 詳細分析 adds extra content to page 2, drop spread back to compact baseline. */
+.print-memo-empty.print-profile-shien .subscore-list { gap: 2mm 4mm; }
+.print-memo-empty.print-profile-shien .subscore-group { padding-bottom: 0; }
+.print-memo-empty.print-profile-shien .subscore-group__title { margin-bottom: 0.8mm; }
+.print-memo-empty.print-profile-shien .subscore-row { padding: 0.3mm 0; }
+.print-memo-empty.print-profile-shien .scale-list { gap: 1.5mm; }
+.print-memo-empty.print-profile-shien .scale-list__item { padding: 0.2mm 0; }
+.print-memo-empty.print-profile-shien .chart-wrapper__bound { height: 32mm; }
+.print-memo-empty.print-profile-shien .insight-card { padding: 1.2mm 2mm; margin-bottom: 1mm; }
+.print-memo-empty.print-profile-shien .site-footer { margin-top: 0.5mm; padding: 0.5mm 0 0 0; }
+.print-memo-empty.print-profile-shien .site-footer__disclaimer { padding: 0.5mm 1.5mm; font-size: 6.5pt; line-height: 1.3; }
+.print-memo-empty.print-profile-shien .site-footer__copyright { font-size: 6.5pt; }
 .scale-list__item {
   grid-template-columns: 22mm 58mm 1fr 28mm;
   gap: 2mm;
@@ -1234,8 +1249,8 @@ a, a:visited { text-decoration: none; }
 @media print {
   .result-hero {
     display: grid !important;
-    grid-template-columns: 45% 55% !important;
-    height: 62mm !important;
+    grid-template-columns: 50% 50% !important;
+    height: 90mm !important;
   }
   .result-hero__chart {
     border-right: 1px solid #E8E9EB !important;
@@ -3478,6 +3493,14 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
   // ---- Print: hide staff-note card when memo is empty; shrink textarea to content ----
   var _printTextareaOrigHeight = null;
   window.addEventListener("beforeprint", function () {
+    // Mark body with current view-profile so print CSS can compress layout
+    // when 詳細分析 (支援者向け) adds extra content on page 2.
+    try {
+      var vp = (typeof AssessmentStorage !== "undefined" && AssessmentStorage.getViewProfile) ? AssessmentStorage.getViewProfile() : "user";
+      document.body.classList.remove("print-profile-user", "print-profile-shien");
+      document.body.classList.add(vp === "shien" ? "print-profile-shien" : "print-profile-user");
+    } catch (e) {}
+
     var card = document.getElementById("staff-note-card");
     var textarea = document.getElementById("staff-note");
     // If no staff-note-card (public build), treat as memo-empty for layout purposes
@@ -3515,6 +3538,7 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
     var card = document.getElementById("staff-note-card");
     if (card) card.removeAttribute("data-print-hidden");
     document.body.classList.remove("print-memo-empty");
+    document.body.classList.remove("print-profile-user", "print-profile-shien");
     // Restore textarea height
     var textarea = document.getElementById("staff-note");
     if (textarea && _printTextareaOrigHeight !== null) {
