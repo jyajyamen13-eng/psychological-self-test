@@ -3185,9 +3185,12 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
       promptAdminPin();
     }
     else if (action === "user-start-eval") {
+      // Force self mode — new evaluation always writes to own-data.
+      AssessmentStorage.setViewMode("self");
       setScreen("user-name-input");
     }
     else if (action === "user-create-and-start") {
+      AssessmentStorage.setViewMode("self");
       var nameEl = document.getElementById("user-name");
       var name = nameEl ? nameEl.value.trim() : "";
       if (!name) {
@@ -3510,6 +3513,10 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
     try {
       state.config = window.QUESTIONS_DATA;
       if (!state.config) throw new Error('QUESTIONS_DATA not found');
+      // Always start a session in self (own-data) mode. If the user
+      // was in demo mode and reloaded the tab, sessionStorage would
+      // otherwise leave isDemo()==true, blocking new-assessment writes.
+      AssessmentStorage.setViewMode("self");
       setScreen("user-home");
     } catch (err) {
       $root().innerHTML = '<div class="card alert-banner alert-banner--high">起動に失敗しました: ' + err.message + '</div>';
