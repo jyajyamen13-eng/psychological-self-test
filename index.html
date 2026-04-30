@@ -968,7 +968,7 @@ body {
 .result-hero {
   display: block;
   border-radius: 0 0 4px 4px;
-  margin-bottom: 3mm;
+  margin-bottom: 2mm;
   box-shadow: none;
   break-inside: avoid;
 }
@@ -1008,8 +1008,8 @@ body {
 
 /* ----- Axis bars (key visual) ----- */
 .axis-bars {
-  padding: 2.5mm 3.5mm;
-  margin-bottom: 3mm;
+  padding: 2mm 3mm;
+  margin-bottom: 2mm;
   box-shadow: none;
   break-inside: avoid;
 }
@@ -1035,16 +1035,35 @@ body {
 .axis-bars__legend { font-size: 7pt; margin-top: 2mm; padding-top: 1mm; gap: 3mm; justify-content: center; }
 .axis-bars__legend-swatch { width: 8px; height: 8px; }
 
-/* ----- Insight (allow flow across pages) ----- */
+/* ----- Time-series chart (compact in print) ----- */
+.chart-wrapper {
+  padding: 2mm 3.5mm;
+  margin-bottom: 2mm;
+  box-shadow: none;
+  break-inside: avoid;
+}
+.chart-wrapper__title { font-size: 8pt; margin-bottom: 1mm; padding-bottom: 1mm; }
+.chart-wrapper__bound { height: 52mm; }
+
+/* ----- Insight (score summary — allow flow across pages) ----- */
 .insight-card {
   padding: 2.5mm 3.5mm;
-  margin-bottom: 3mm;
+  margin-bottom: 2mm;
   box-shadow: none;
   break-inside: auto;
 }
-.insight-card__title { font-size: 8pt; padding-bottom: 1mm; margin-bottom: 2mm; }
-.insight-card__content { font-size: 8.5pt; line-height: 1.55; }
-.insight-card__content p { margin: 0 0 1.5mm 0; }
+.insight-card__title { font-size: 8pt; padding-bottom: 1mm; margin-bottom: 1.5mm; }
+.insight-card__content { font-size: 8pt; line-height: 1.45; }
+.insight-card__content p { margin: 0 0 1mm 0; }
+
+/* ----- Detailed insight card (支援者向け) — ultra compact ----- */
+.insight-card[style*="border-left"] {
+  padding: 1.5mm 2.5mm;
+  margin-bottom: 1.5mm;
+  break-before: avoid;
+}
+.insight-card[style*="border-left"] .insight-card__content { font-size: 7.5pt; line-height: 1.4; }
+.insight-card[style*="border-left"] .insight-card__content p { margin: 0 0 0.5mm 0; }
 
 /* ----- Scale list ----- */
 .scale-list { gap: 1.5mm; }
@@ -1079,13 +1098,13 @@ body {
 
 /* ----- Generic card ----- */
 .card {
-  padding: 2.5mm 3.5mm;
-  margin-bottom: 3mm;
+  padding: 2mm 3mm;
+  margin-bottom: 2mm;
   box-shadow: none;
   break-inside: avoid;
 }
 .card__title { font-size: 8pt; }
-.card__header { padding-bottom: 1mm; margin-bottom: 2mm; }
+.card__header { padding-bottom: 1mm; margin-bottom: 1.5mm; }
 .card__subtitle { font-size: 8pt; }
 
 /* ----- Alerts ----- */
@@ -1098,15 +1117,15 @@ body {
 
 /* ----- Footer ----- */
 .site-footer {
-  padding: 2mm 0 0 0;
-  margin-top: 2mm;
+  padding: 1mm 0 0 0;
+  margin-top: 1mm;
   background: transparent;
   box-shadow: none;
   break-inside: avoid;
   break-before: avoid;
 }
 .site-footer__inner { padding: 0; }
-.site-footer__disclaimer { font-size: 7pt; padding: 1.5mm 2mm; margin: 0 0 1mm 0; }
+.site-footer__disclaimer { font-size: 7pt; padding: 1mm 2mm; margin: 0 0 0.5mm 0; }
 .site-footer__copyright { font-size: 7pt; }
 
 /* Body link normalization */
