@@ -3014,6 +3014,10 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
       state.responses = {};
       state.axisCursor = 0;
       state.activeResultIdx = AssessmentStorage.listResults(state.clientId).length - 1;
+      // Reset to 利用者向け view for every new evaluation result.
+      // Prevents a previously-selected 支援者向け profile from being
+      // shown immediately after completing a new assessment.
+      AssessmentStorage.setViewProfile("user");
       setScreen("result");
     }).catch(function (err) {
       showInfoModal("保存エラー", err.message || "結果の保存に失敗しました");
@@ -3254,6 +3258,8 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
     else if (action === "open-demo") {
       AssessmentStorage.buildDemoCache(state.config);
       AssessmentStorage.setViewMode("demo");
+      // Reset profile so demo results always open in 利用者向け by default.
+      AssessmentStorage.setViewProfile("user");
       setScreen("home", { clientId: null });
     }
     else if (action === "close-demo") {
