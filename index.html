@@ -934,6 +934,9 @@ body {
 .btn, .btn-row, button { display: none !important; }
 #staff-note { border: 1px solid #ccc; min-height: 12mm; padding: 2mm; }
 
+/* Hide staff-note card when memo is empty (set by beforeprint JS) */
+[data-print-hidden] { display: none !important; }
+
 /* Compact main container */
 .site-main {
   padding: 0;
@@ -3355,6 +3358,22 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
   } else {
     boot();
   }
+
+  // ---- Print: hide staff-note card when memo is empty ----
+  window.addEventListener("beforeprint", function () {
+    var card = document.getElementById("staff-note-card");
+    if (!card) return;
+    var textarea = document.getElementById("staff-note");
+    var isEmpty = !textarea || textarea.value.trim() === "";
+    if (isEmpty) {
+      card.setAttribute("data-print-hidden", "true");
+    }
+  });
+
+  window.addEventListener("afterprint", function () {
+    var card = document.getElementById("staff-note-card");
+    if (card) card.removeAttribute("data-print-hidden");
+  });
 
   root.AssessmentApp = { state: state };
 })(typeof self !== "undefined" ? self : this);
