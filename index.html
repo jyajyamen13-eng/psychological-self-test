@@ -1616,6 +1616,11 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
   var KEY_DRAFT_PREFIX = "self_draft:";
   var KEY_VIEW_MODE = "self_view_mode"; // "self" | "demo"
   var KEY_VIEW_PROFILE = "self_view_profile"; // "user" (default, simple) | "shien" (detailed)
+  // Tab-scoped supporter preview. When true, the entire app is rendered in
+  // 支援者向け view (alerts, detailed analysis, etc.) regardless of the
+  // per-result toggle. Stored in sessionStorage so closing the tab reverts
+  // to the safe default (利用者向け), preventing accidental disclosure.
+  var KEY_SUPPORTER_PREVIEW = "self_supporter_preview";
 
   // --- demo cache (read-only, built once on demand) ---
   var demoBuilt = false;
@@ -1684,13 +1689,30 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
   }
   function isDemo() { return getViewMode() === "demo"; }
 
+  function getSupporterPreview() {
+    try { return sessionStorage.getItem(KEY_SUPPORTER_PREVIEW) === "1"; }
+    catch (e) { return false; }
+  }
+  function setSupporterPreview(on) {
+    try {
+      if (on) sessionStorage.setItem(KEY_SUPPORTER_PREVIEW, "1");
+      else sessionStorage.removeItem(KEY_SUPPORTER_PREVIEW);
+    } catch (e) {}
+  }
+
   function getViewProfile() {
+    // Supporter preview overrides the stored profile — tab-scoped force-shien.
+    if (getSupporterPreview()) return "shien";
     try {
       var v = localStorage.getItem(KEY_VIEW_PROFILE);
       return (v === "shien" || v === "user") ? v : "user";
     } catch (e) { return "user"; }
   }
   function setViewProfile(p) {
+    // While supporter preview is active, refuse to downgrade to "user" so the
+    // "always reset on new eval" reset call doesn't accidentally drop the
+    // supporter preview mid-session. Explicit set-to-shien is allowed (no-op).
+    if (getSupporterPreview()) return;
     if (p !== "user" && p !== "shien") p = "user";
     try { localStorage.setItem(KEY_VIEW_PROFILE, p); } catch (e) {}
   }
@@ -1875,6 +1897,8 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
     setViewMode: setViewMode,
     getViewProfile: getViewProfile,
     setViewProfile: setViewProfile,
+    getSupporterPreview: getSupporterPreview,
+    setSupporterPreview: setSupporterPreview,
     clearAllOwnData: clearAllOwnData
   };
 })(typeof self !== "undefined" ? self : this);
@@ -2054,6 +2078,10 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
       '    <button class="btn btn--ghost" data-action="self-clear-all" style="margin-left:auto;color:var(--color-danger);">全データを削除</button>' +
       '  </div>' +
       '  <p style="font-size:12px;color:var(--color-text-muted);margin-top:24px;">このツールは LocalStorage にデータを保存します。データはあなたのブラウザにのみ残り、サーバーには送信されません。</p>' +
+      (AssessmentStorage.getSupporterPreview() ? '' :
+        '  <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--color-border);text-align:right;">' +
+        '    <button class="btn btn--ghost" data-action="enter-supporter-mode" style="font-size:11px;padding:4px 10px;color:var(--color-text-muted);min-width:0;">支援者として見る</button>' +
+        '  </div>') +
       '</div>';
   }
 
@@ -2778,11 +2806,15 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
   function renderModeIndicator() {
     var el = document.getElementById("mode-indicator");
     if (!el) return;
-    if (AssessmentStorage.isDemo()) {
-      el.innerHTML = '<span class="mode-indicator__badge mode-indicator__badge--admin" style="background:var(--color-warning);">サンプル表示中</span>';
-    } else {
-      el.innerHTML = '';
+    var parts = [];
+    if (AssessmentStorage.getSupporterPreview()) {
+      parts.push('<span class="mode-indicator__badge" style="background:#c0392b;color:#fff;font-weight:700;">支援者プレビュー中</span>');
+      parts.push('<button class="btn btn--ghost" data-action="exit-supporter-mode" style="font-size:12px;padding:4px 10px;min-width:0;">支援者プレビュー解除</button>');
     }
+    if (AssessmentStorage.isDemo()) {
+      parts.push('<span class="mode-indicator__badge mode-indicator__badge--admin" style="background:var(--color-warning);">サンプル表示中</span>');
+    }
+    el.innerHTML = parts.join(' ');
   }
 
   function setScreen(name, opts) {
@@ -3255,10 +3287,30 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
         });
       }
     }
+    else if (action === "enter-supporter-mode") {
+      showConfirmModal({
+        title: "支援者向けビューに入りますか？",
+        body: "このモードでは、利用者本人には見せたくない詳細分析・アラート・症状負荷情報が表示されます。職員/本部の方が試用・評価する目的で使ってください。",
+        danger: "支援者として続ける",
+        cancel: "キャンセル",
+        onConfirm: function () {
+          AssessmentStorage.setSupporterPreview(true);
+          render();
+        }
+      });
+    }
+    else if (action === "exit-supporter-mode") {
+      AssessmentStorage.setSupporterPreview(false);
+      // After exiting preview, force the per-result toggle back to
+      // 利用者向け so result pages don't keep showing supporter content.
+      AssessmentStorage.setViewProfile("user");
+      render();
+    }
     else if (action === "open-demo") {
       AssessmentStorage.buildDemoCache(state.config);
       AssessmentStorage.setViewMode("demo");
       // Reset profile so demo results always open in 利用者向け by default.
+      // (no-op when supporter preview is active — see storage.setViewProfile)
       AssessmentStorage.setViewProfile("user");
       setScreen("home", { clientId: null });
     }
