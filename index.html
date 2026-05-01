@@ -1621,6 +1621,9 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
   // per-result toggle. Stored in sessionStorage so closing the tab reverts
   // to the safe default (利用者向け), preventing accidental disclosure.
   var KEY_SUPPORTER_PREVIEW = "self_supporter_preview";
+  var KEY_SUPPORTER_PIN_HASH = "self_supporter_pin_hash";
+  var KEY_SUPPORTER_LOCK_UNTIL = "self_supporter_lock_until";
+  var KEY_SUPPORTER_FAIL_COUNT = "self_supporter_fail_count";
 
   // --- demo cache (read-only, built once on demand) ---
   var demoBuilt = false;
@@ -1858,6 +1861,35 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
   function verifyPin() { return Promise.resolve({ ok: false }); }
   function importPayload() { return Promise.reject(new Error("インポートは無効化されています")); }
 
+  // --- supporter PIN helpers ---
+  function getSupporterPinHash() {
+    try { return localStorage.getItem(KEY_SUPPORTER_PIN_HASH) || null; }
+    catch (e) { return null; }
+  }
+  function setSupporterPinHash(hash) {
+    try { localStorage.setItem(KEY_SUPPORTER_PIN_HASH, hash); } catch (e) {}
+  }
+  function getSupporterLockUntil() {
+    try { return parseInt(localStorage.getItem(KEY_SUPPORTER_LOCK_UNTIL) || "0", 10); }
+    catch (e) { return 0; }
+  }
+  function setSupporterLockUntil(ts) {
+    try {
+      if (ts) localStorage.setItem(KEY_SUPPORTER_LOCK_UNTIL, String(ts));
+      else localStorage.removeItem(KEY_SUPPORTER_LOCK_UNTIL);
+    } catch (e) {}
+  }
+  function getSupporterFailCount() {
+    try { return parseInt(localStorage.getItem(KEY_SUPPORTER_FAIL_COUNT) || "0", 10); }
+    catch (e) { return 0; }
+  }
+  function setSupporterFailCount(n) {
+    try {
+      if (n > 0) localStorage.setItem(KEY_SUPPORTER_FAIL_COUNT, String(n));
+      else localStorage.removeItem(KEY_SUPPORTER_FAIL_COUNT);
+    } catch (e) {}
+  }
+
   function clearAllOwnData() {
     var arr = readJSON(KEY_CLIENTS, []);
     arr.forEach(function (c) {
@@ -1865,6 +1897,10 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
       try { localStorage.removeItem(KEY_DRAFT_PREFIX + c.id); } catch (e) {}
     });
     try { localStorage.removeItem(KEY_CLIENTS); } catch (e) {}
+    // Also clear supporter PIN so next click is treated as first-time setup.
+    try { localStorage.removeItem(KEY_SUPPORTER_PIN_HASH); } catch (e) {}
+    try { localStorage.removeItem(KEY_SUPPORTER_LOCK_UNTIL); } catch (e) {}
+    try { localStorage.removeItem(KEY_SUPPORTER_FAIL_COUNT); } catch (e) {}
     return Promise.resolve();
   }
 
@@ -1899,7 +1935,14 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
     setViewProfile: setViewProfile,
     getSupporterPreview: getSupporterPreview,
     setSupporterPreview: setSupporterPreview,
-    clearAllOwnData: clearAllOwnData
+    clearAllOwnData: clearAllOwnData,
+    // supporter PIN (public-build only):
+    getSupporterPinHash: getSupporterPinHash,
+    setSupporterPinHash: setSupporterPinHash,
+    getSupporterLockUntil: getSupporterLockUntil,
+    setSupporterLockUntil: setSupporterLockUntil,
+    getSupporterFailCount: getSupporterFailCount,
+    setSupporterFailCount: setSupporterFailCount
   };
 })(typeof self !== "undefined" ? self : this);
 
@@ -3285,16 +3328,10 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
       }
     }
     else if (action === "enter-supporter-mode") {
-      showConfirmModal({
-        title: "支援者向けビューに入りますか？",
-        body: "このモードでは、利用者本人には見せたくない詳細分析・アラート・症状負荷情報が表示されます。職員/本部の方が試用・評価する目的で使ってください。",
-        danger: "支援者として続ける",
-        cancel: "キャンセル",
-        onConfirm: function () {
-          AssessmentStorage.setSupporterPreview(true);
-          render();
-        }
-      });
+      showSupporterPinModal();
+    }
+    else if (action === "supporter-pin-submit") {
+      handleSupporterPinSubmit(t);
     }
     else if (action === "exit-supporter-mode") {
       AssessmentStorage.setSupporterPreview(false);
@@ -3477,6 +3514,145 @@ window.DEMO_DATA_RAW = {"version": "0.1.0", "exported_at": "2026-04-28T00:00:00.
 
   // Expose for demo-loader to trigger a re-render after import.
   root._refreshAndRender = refreshAndRender;
+
+  // --- sha256 via SubtleCrypto (async) ---
+  function sha256hex(str) {
+    var buf = new TextEncoder().encode(str);
+    return crypto.subtle.digest('SHA-256', buf).then(function (hashBuf) {
+      return Array.from(new Uint8Array(hashBuf))
+        .map(function (b) { return ('00' + b.toString(16)).slice(-2); })
+        .join('');
+    });
+  }
+
+  function showSupporterPinModal() {
+    closeModal();
+    var storedHash = AssessmentStorage.getSupporterPinHash();
+    var isFirstSetup = !storedHash;
+    // Check lockout.
+    var lockUntil = AssessmentStorage.getSupporterLockUntil();
+    var now = Date.now();
+    if (lockUntil > now) {
+      var unlockTime = new Date(lockUntil);
+      var hh = ('0' + unlockTime.getHours()).slice(-2);
+      var mm = ('0' + unlockTime.getMinutes()).slice(-2);
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.id = 'modal-overlay';
+      overlay.innerHTML =
+        '<div class="modal" role="dialog" aria-modal="true">' +
+        '  <h2 class="modal__title">支援者プレビュー — PIN 認証</h2>' +
+        '  <p class="modal__body" style="color:var(--color-danger);">不正解が続いたため、' + hh + ':' + mm + ' まで再試行できません。</p>' +
+        '  <div class="modal__actions">' +
+        '    <button class="btn btn--primary" data-action="modal-cancel">閉じる</button>' +
+        '  </div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+      return;
+    }
+    var title = isFirstSetup ? '支援者プレビュー モードの初回設定' : '支援者プレビュー — PIN 認証';
+    var bodyText = isFirstSetup
+      ? '4 桁 PIN を設定してください（このブラウザに保存され、次回以降このボタンを押した時に必要になります）'
+      : '4 桁 PIN を入力してください';
+    var btnLabel = isFirstSetup ? '設定' : '認証';
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'modal-overlay';
+    overlay.innerHTML =
+      '<div class="modal" role="dialog" aria-modal="true">' +
+      '  <h2 class="modal__title">' + AssessmentScreens.escapeHtml(title) + '</h2>' +
+      '  <p class="modal__body">' + AssessmentScreens.escapeHtml(bodyText) + '</p>' +
+      '  <input class="field__input" id="supporter-pin-input" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="4 桁の数字" style="margin-bottom:16px;letter-spacing:0.5em;text-align:center;font-size:20px;" />' +
+      '  <div id="supporter-pin-error" style="color:var(--color-danger);font-size:13px;margin-bottom:8px;display:none;"></div>' +
+      '  <div class="modal__actions">' +
+      '    <button class="btn btn--ghost" data-action="modal-cancel">キャンセル</button>' +
+      '    <button class="btn btn--primary" data-action="supporter-pin-submit" data-first-setup="' + (isFirstSetup ? '1' : '0') + '">' + AssessmentScreens.escapeHtml(btnLabel) + '</button>' +
+      '  </div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    setTimeout(function () {
+      var input = document.getElementById('supporter-pin-input');
+      if (input) input.focus();
+    }, 50);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+    overlay.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        var btn = overlay.querySelector('[data-action="supporter-pin-submit"]');
+        if (btn) btn.click();
+      }
+    });
+  }
+
+  function handleSupporterPinSubmit(btn) {
+    var input = document.getElementById('supporter-pin-input');
+    var pin = input ? input.value.trim() : '';
+    var errEl = document.getElementById('supporter-pin-error');
+    var isFirst = btn.getAttribute('data-first-setup') === '1';
+    if (!/^\d{4}$/.test(pin)) {
+      if (errEl) { errEl.textContent = '4 桁の数字を入力してください'; errEl.style.display = 'block'; }
+      return;
+    }
+    sha256hex(pin).then(function (hash) {
+      if (isFirst) {
+        // First setup: save hash then show warning modal.
+        AssessmentStorage.setSupporterPinHash(hash);
+        AssessmentStorage.setSupporterFailCount(0);
+        AssessmentStorage.setSupporterLockUntil(0);
+        closeModal();
+        showConfirmModal({
+          title: '支援者向けビューに入りますか？',
+          body: 'このモードでは、利用者本人には見せたくない詳細分析・アラート・症状負荷情報が表示されます。職員/本部の方が試用・評価する目的で使ってください。',
+          danger: '支援者として続ける',
+          cancel: 'キャンセル',
+          onConfirm: function () {
+            AssessmentStorage.setSupporterPreview(true);
+            render();
+          }
+        });
+      } else {
+        var storedHash = AssessmentStorage.getSupporterPinHash();
+        if (hash === storedHash) {
+          // PIN matched — reset fail counter and proceed.
+          AssessmentStorage.setSupporterFailCount(0);
+          AssessmentStorage.setSupporterLockUntil(0);
+          closeModal();
+          showConfirmModal({
+            title: '支援者向けビューに入りますか？',
+            body: 'このモードでは、利用者本人には見せたくない詳細分析・アラート・症状負荷情報が表示されます。職員/本部の方が試用・評価する目的で使ってください。',
+            danger: '支援者として続ける',
+            cancel: 'キャンセル',
+            onConfirm: function () {
+              AssessmentStorage.setSupporterPreview(true);
+              render();
+            }
+          });
+        } else {
+          // PIN mismatch.
+          var failCount = AssessmentStorage.getSupporterFailCount() + 1;
+          AssessmentStorage.setSupporterFailCount(failCount);
+          if (failCount >= 5) {
+            // Lock for 1 minute.
+            var lockTs = Date.now() + 60 * 1000;
+            AssessmentStorage.setSupporterLockUntil(lockTs);
+            AssessmentStorage.setSupporterFailCount(0);
+            closeModal();
+            // Show lockout modal.
+            var unlockTime = new Date(lockTs);
+            var hh = ('0' + unlockTime.getHours()).slice(-2);
+            var mm = ('0' + unlockTime.getMinutes()).slice(-2);
+            showInfoModal('支援者プレビュー — PIN 認証', '不正解が続いたため、' + hh + ':' + mm + ' まで再試行できません。');
+          } else {
+            if (errEl) {
+              errEl.textContent = 'PIN が一致しません（残り ' + (5 - failCount) + ' 回）';
+              errEl.style.display = 'block';
+            }
+            if (input) { input.value = ''; input.focus(); }
+          }
+        }
+      }
+    });
+  }
 
   function promptAdminPin() {
     closeModal();
